@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { buildUsage, readQuery, TranscriptSource } from './usage.mjs';
+import { buildDaily, buildUsage, readQuery, TranscriptSource } from './usage.mjs';
 
 const port = Number(process.env.ANTIGRAVITY_DASHBOARD_PORT ?? process.env.PORT ?? 8768);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new RangeError('端口必须为 1–65535。');
@@ -47,10 +47,11 @@ const server = http.createServer(async (req, res) => {
     const asset = assets.get(url.pathname);
     if (asset) return send(res, 200, asset.content, asset.type);
     if (url.pathname === '/api/health') return send(res, 200, { app: 'antigravity-usage-dashboard' });
-    if (url.pathname !== '/api/usage' && url.pathname !== '/api/session') return send(res, 404, { error: '页面不存在。' });
+    if (!['/api/usage', '/api/session', '/api/daily'].includes(url.pathname)) return send(res, 404, { error: '页面不存在。' });
 
     let query;
     try { query = readQuery(url.searchParams); } catch (error) { return send(res, 400, { error: error.message }); }
+    if (url.pathname === '/api/daily') return send(res, 200, buildDaily(await source.read(), query));
     const id = url.pathname === '/api/session' ? url.searchParams.get('id') : undefined;
     if (url.pathname === '/api/session' && !id) return send(res, 400, { error: '缺少会话 ID。' });
     const data = buildUsage(await source.read(), query, id);

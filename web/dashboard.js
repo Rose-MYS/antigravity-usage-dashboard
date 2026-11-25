@@ -295,11 +295,13 @@ const tooltip = (() => {
       if (value) row.append(node('b', '', value));
       return row;
     }));
-    box.hidden = false;
+    // 弹出层位于浏览器顶层，日期面板等模态对话框打开时也能显示在最上面。
+    if (box.matches(':popover-open')) box.hidePopover();
+    box.showPopover();
     place(at);
   }
   function hide() {
-    box.hidden = true;
+    if (box.matches(':popover-open')) box.hidePopover();
     owner = null;
   }
   const rowsFor = (element) => JSON.parse(element.dataset.tip);
@@ -318,7 +320,7 @@ const tooltip = (() => {
     show(rowsFor(target), { x: event.clientX, y: event.clientY });
   });
   document.addEventListener('pointermove', (event) => {
-    if (owner && !box.hidden) place({ x: event.clientX, y: event.clientY });
+    if (owner && box.matches(':popover-open')) place({ x: event.clientX, y: event.clientY });
   });
   document.addEventListener('focusin', (event) => {
     const target = event.target.closest?.('[data-tip]');
@@ -781,27 +783,248 @@ $('reset-filters').addEventListener('click', () => {
   $('timezone').value = homeZone;
 });
 
-function updateDateFields() {
-  const custom = $('period').value === 'custom';
-  $('date-fields').hidden = !custom;
-  $('date-from').required = custom;
-  $('date-to').required = custom;
-  $('date-to').min = custom ? $('date-from').value : '';
+// ---------- 日期选择（参考 codex-usage-dashboard 的日历面板） ----------
+const dayKey = (date) => date.toISOString().slice(0, 10);
+function parseDay(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value ?? '')) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(+date) && dayKey(date) === value ? date : null;
+}
+function shiftDay(value, count) {
+  const date = parseDay(value);
+  date.setUTCDate(date.getUTCDate() + count);
+  return dayKey(date);
+}
+function monthDays(month) {
+  const first = parseDay(`${month}-01`);
+  const offset = (first.getUTCDay() + 6) % 7;
+  const count = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  const start = shiftDay(dayKey(first), -offset);
+  return Array.from({ length: Math.ceil((offset + count) / 7) * 7 }, (_, i) => shiftDay(start, i));
+}
+function rangeDays(from, to) {
+  const start = parseDay(from);
+  const end = parseDay(to);
+  return start && end && end >= start ? Math.round((end - start) / 86400000) + 1 : 0;
+}
+function presetRange(period, today, earliest) {
+  const weekday = (parseDay(today).getUTCDay() + 6) % 7;
+  const from = { '7d': shiftDay(today, -6), '30d': shiftDay(today, -29), week: shiftDay(today, -weekday),
+    month: `${today.slice(0, 8)}01`, all: earliest }[period] ?? today;
+  return { from, to: today };
+}
+const slashDate = (value) => value.replaceAll('-', '/');
+const dashDate = (value) => value.trim().replace(/[./年月]/g, '-').replace(/日$/, '')
+  .replace(/^(\d{4})-(\d{1,2})-(\d{1,2})$/, (_, y, m, d) => `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+
+const calendar = {
+  from: '', to: '', period: 'today', month: '', focus: '', choosingEnd: false,
+  today: '', earliest: '', days: new Map(), loading: false, request: null,
+};
+options($('calendar-month'), Array.from({ length: 12 }, (_, i) => [String(i + 1).padStart(2, '0'), `${i + 1} 月`]));
+
+function placeCalendar() {
+  const panel = $('dates');
+  if (matchMedia('(max-width: 760px)').matches) {
+    for (const key of ['--calendar-top', '--calendar-left', '--calendar-height']) panel.style.removeProperty(key);
+    return;
+  }
+  const anchor = $('date-trigger').getBoundingClientRect();
+  const width = Math.min(712, innerWidth - 24);
+  const top = Math.min(anchor.bottom + 8, Math.max(12, innerHeight - 600));
+  panel.style.setProperty('--calendar-top', `${top}px`);
+  panel.style.setProperty('--calendar-left', `${Math.max(12, Math.min(anchor.right - width, innerWidth - width - 12))}px`);
+  panel.style.setProperty('--calendar-height', `${Math.max(240, innerHeight - top - 12)}px`);
 }
 
-$('date-trigger').addEventListener('click', () => {
-  $('period').value = query.period;
-  $('date-from').value = query.from || data?.meta.start || data?.meta.today || '';
-  $('date-to').value = query.to || data?.meta.end || data?.meta.today || '';
-  updateDateFields();
+function renderCalendar() {
+  const { from, to, month, focus, today, days, loading } = calendar;
+  const selected = rangeDays(from, to);
+  for (const button of $('calendar-presets').querySelectorAll('button')) {
+    button.setAttribute('aria-pressed', button.dataset.period === calendar.period);
+  }
+  if (document.activeElement !== $('calendar-year')) $('calendar-year').value = month.slice(0, 4);
+  $('calendar-month').value = month.slice(5);
+  const grid = $('calendar-grid');
+  grid.setAttribute('aria-label', `${month.slice(0, 4)} 年 ${Number(month.slice(5))} 月`);
+  grid.replaceChildren(...monthDays(month).map((date, index) => {
+    const inRange = selected > 0 && date >= from && date <= to;
+    const value = days.get(date) ?? 0;
+    const cell = node('button');
+    cell.type = 'button';
+    cell.dataset.date = date;
+    cell.tabIndex = date === focus ? 0 : -1;
+    cell.style.setProperty('--range-column', index % 7);
+    cell.classList.toggle('outside', !date.startsWith(month));
+    cell.classList.toggle('in-range', inRange);
+    cell.classList.toggle('range-start', inRange && date === from);
+    cell.classList.toggle('range-end', inRange && date === to);
+    cell.classList.toggle('today', date === today);
+    cell.classList.toggle('future', date > today);
+    if (date === today) cell.setAttribute('aria-current', 'date');
+    cell.setAttribute('aria-pressed', inRange);
+    cell.setAttribute('aria-label', `${date}：${loading ? '读取中' : `${number.format(value)} tokens`}`);
+    cell.append(node('span', 'date-number', Number(date.slice(8))), node('small', '', loading ? '…' : value ? compact(value) : ''));
+    return value ? tip(cell, [[dateText(date, true)], ['用量', `${number.format(value)} tokens`]]) : cell;
+  }));
+  const sum = (prefix) => [...days].reduce((total, [date, value]) => total + (date.startsWith(prefix) ? value : 0), 0);
+  const monthTotal = sum(month);
+  const yearTotal = sum(month.slice(0, 4));
+  $('calendar-month-total').textContent = loading ? '—' : compact(monthTotal);
+  $('calendar-month-total').title = `${number.format(monthTotal)} tokens`;
+  $('calendar-year-total').textContent = loading ? '—' : compact(yearTotal);
+  $('calendar-year-total').title = `${number.format(yearTotal)} tokens`;
+  for (const [id, value] of [['date-from', from], ['date-to', to]]) {
+    const input = $(id);
+    if (document.activeElement !== input) input.value = slashDate(value);
+    input.setAttribute('aria-invalid', Boolean(from && to && !selected));
+  }
+  $('selected-days').textContent = selected ? `已选 ${selected} 天` : '请选择有效的起止日期';
+  $('date-apply').disabled = !selected;
+}
+
+function focusCalendarDay() {
+  $('calendar-grid').querySelector(`[data-date="${calendar.focus}"]`)?.focus({ preventScroll: true });
+}
+
+function showMonth(month, focus = `${month}-01`) {
+  calendar.month = month;
+  calendar.focus = focus;
+  renderCalendar();
+}
+
+function moveMonth(delta) {
+  const date = parseDay(`${calendar.month}-01`);
+  date.setUTCMonth(date.getUTCMonth() + delta);
+  showMonth(dayKey(date).slice(0, 7));
+}
+
+async function loadCalendarDays() {
+  calendar.request?.abort();
+  const request = new AbortController();
+  calendar.request = request;
+  calendar.loading = !calendar.days.size;
+  renderCalendar();
+  const params = new URLSearchParams({ timezone: query.timezone });
+  if (query.model) params.set('model', query.model);
+  try {
+    const result = await getJson('/api/daily', params, request.signal);
+    calendar.days = new Map(Object.entries(result.days));
+    calendar.today = result.today;
+    calendar.earliest = result.earliest;
+  } catch {
+    if (request.signal.aborted) return;
+  }
+  calendar.loading = false;
+  if (!request.signal.aborted && $('dates').open) renderCalendar();
+}
+
+function openCalendar() {
+  const today = data?.meta.today ?? dayKey(new Date());
+  calendar.today = today;
+  calendar.earliest ||= today;
+  calendar.period = query.period;
+  calendar.from = data?.meta.start ?? (query.period === 'all' ? calendar.earliest : today);
+  calendar.to = data?.meta.end ?? today;
+  calendar.choosingEnd = false;
+  calendar.focus = calendar.from;
+  calendar.month = calendar.from.slice(0, 7);
+  placeCalendar();
+  renderCalendar();
   $('dates').showModal();
+  $('date-trigger').setAttribute('aria-expanded', 'true');
+  focusCalendarDay();
+  loadCalendarDays();
+}
+
+function closeCalendar() {
+  if ($('dates').open) $('dates').close();
+}
+
+$('dates').addEventListener('close', () => {
+  $('date-trigger').setAttribute('aria-expanded', 'false');
+  tooltip.hide();
+  $('date-trigger').focus({ preventScroll: true });
 });
-$('period').addEventListener('change', updateDateFields);
-$('date-from').addEventListener('change', updateDateFields);
+$('dates').addEventListener('click', (event) => {
+  if (event.target === $('dates')) closeCalendar();
+});
+$('date-trigger').addEventListener('click', openCalendar);
+$('date-cancel').addEventListener('click', closeCalendar);
+window.addEventListener('resize', () => { if ($('dates').open) placeCalendar(); });
+
+$('calendar-presets').addEventListener('click', (event) => {
+  const period = event.target.closest('button')?.dataset.period;
+  if (!period) return;
+  calendar.period = period;
+  calendar.choosingEnd = false;
+  if (period !== 'custom') {
+    ({ from: calendar.from, to: calendar.to } = presetRange(period, calendar.today, calendar.earliest || calendar.today));
+    calendar.month = calendar.from.slice(0, 7);
+    calendar.focus = calendar.from;
+  }
+  renderCalendar();
+});
+$('calendar-grid').addEventListener('click', (event) => {
+  const date = event.target.closest('button[data-date]')?.dataset.date;
+  if (!date) return;
+  calendar.period = 'custom';
+  calendar.focus = date;
+  if (!calendar.choosingEnd) {
+    calendar.from = calendar.to = date;
+    calendar.choosingEnd = true;
+  } else {
+    [calendar.from, calendar.to] = date < calendar.from ? [date, calendar.from] : [calendar.from, date];
+    calendar.choosingEnd = false;
+  }
+  if (!date.startsWith(calendar.month)) calendar.month = date.slice(0, 7);
+  renderCalendar();
+  focusCalendarDay();
+});
+$('calendar-grid').addEventListener('keydown', (event) => {
+  const date = event.target.dataset?.date;
+  if (!date) return;
+  const weekday = (parseDay(date).getUTCDay() + 6) % 7;
+  const steps = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7, Home: -weekday, End: 6 - weekday };
+  let next;
+  if (event.key in steps) next = shiftDay(date, steps[event.key]);
+  else if (event.key === 'PageUp' || event.key === 'PageDown') {
+    const target = parseDay(date);
+    target.setUTCMonth(target.getUTCMonth() + (event.key === 'PageUp' ? -1 : 1));
+    next = dayKey(target);
+  } else return;
+  event.preventDefault();
+  showMonth(next.slice(0, 7), next);
+  focusCalendarDay();
+});
+$('month-previous').addEventListener('click', () => moveMonth(-1));
+$('month-next').addEventListener('click', () => moveMonth(1));
+$('back-today').addEventListener('click', () => showMonth(calendar.today.slice(0, 7), calendar.today));
+$('calendar-month').addEventListener('change', (event) => showMonth(`${calendar.month.slice(0, 4)}-${event.target.value}`));
+$('calendar-year').addEventListener('change', (event) => {
+  const year = event.target.value.trim();
+  if (/^\d{4}$/.test(year) && Number(year) >= 1970) showMonth(`${year}-${calendar.month.slice(5)}`);
+  else event.target.value = calendar.month.slice(0, 4);
+});
+for (const [id, key] of [['date-from', 'from'], ['date-to', 'to']]) {
+  $(id).addEventListener('input', (event) => {
+    calendar[key] = dashDate(event.target.value);
+    calendar.period = 'custom';
+    calendar.choosingEnd = false;
+    if (parseDay(calendar[key])) {
+      calendar.month = calendar[key].slice(0, 7);
+      calendar.focus = calendar[key];
+    }
+    renderCalendar();
+  });
+  $(id).addEventListener('blur', renderCalendar);
+}
 $('date-form').addEventListener('submit', (event) => {
   event.preventDefault();
-  $('dates').close();
-  updateQuery({ period: $('period').value, from: $('date-from').value, to: $('date-to').value });
+  if (!rangeDays(calendar.from, calendar.to)) return;
+  const { period, from, to } = calendar;
+  closeCalendar();
+  updateQuery(period === 'custom' ? { period, from, to } : { period });
 });
 $('quick-periods').addEventListener('click', (event) => {
   if (event.target.dataset.period) updateQuery({ period: event.target.dataset.period });

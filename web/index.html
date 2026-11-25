@@ -47,7 +47,7 @@
           <button type="button" data-period="week">本周</button>
           <button type="button" data-period="month">本月</button>
         </div>
-        <button type="button" class="control date-control" id="date-trigger"><svg class="icon"><use href="#i-calendar"></use></svg><span id="date-label">选择日期</span><svg class="icon small"><use href="#i-chevron"></use></svg></button>
+        <button type="button" class="control date-control" id="date-trigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="dates"><svg class="icon"><use href="#i-calendar"></use></svg><span id="date-label">选择日期</span><svg class="icon small"><use href="#i-chevron"></use></svg></button>
       </div>
     </header>
 
@@ -125,7 +125,7 @@
       <div><span id="refresh-status" role="status"></span><button type="button" id="refresh" title="刷新数据" aria-label="刷新数据"><svg class="icon"><use href="#i-refresh"></use></svg></button></div>
     </footer>
   </main>
-  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+  <div class="tooltip" id="tooltip" role="tooltip" popover="manual"></div>
 
   <dialog id="filters" aria-labelledby="filters-title">
     <form id="filter-form">
@@ -135,18 +135,46 @@
       <div class="dialog-actions"><button type="button" class="control" id="reset-filters">清除筛选</button><button type="submit" class="primary">应用</button></div>
     </form>
   </dialog>
-  <dialog id="dates" aria-labelledby="dates-title">
-    <form id="date-form">
-      <header><h2 id="dates-title">日期范围</h2><button type="button" class="close-dialog" aria-label="关闭"><svg class="icon"><use href="#i-close"></use></svg></button></header>
-      <label>时间范围<select id="period">
-        <option value="today">今天</option><option value="7d">近 7 天</option><option value="week">本周</option>
-        <option value="month">本月</option><option value="30d">近 30 天</option><option value="all">全部</option><option value="custom">自定义日期</option>
-      </select></label>
-      <div class="date-fields" id="date-fields" hidden>
-        <label>开始日期<input type="date" id="date-from"></label>
-        <label>结束日期<input type="date" id="date-to"></label>
+  <dialog id="dates" class="calendar-panel" aria-labelledby="dates-title">
+    <header class="calendar-heading">
+      <h2 id="dates-title">选择日期</h2>
+      <button type="button" class="close-dialog" aria-label="关闭"><svg class="icon"><use href="#i-close"></use></svg></button>
+    </header>
+    <div class="calendar-body">
+      <nav class="calendar-presets" id="calendar-presets" aria-label="快捷范围">
+        <button type="button" data-period="today">今天</button>
+        <button type="button" data-period="7d">近 7 天</button>
+        <button type="button" data-period="week">本周</button>
+        <button type="button" data-period="month">本月</button>
+        <button type="button" data-period="30d">近 30 天</button>
+        <button type="button" data-period="all">全部</button>
+        <button type="button" data-period="custom">自定义</button>
+      </nav>
+      <div class="calendar-month">
+        <div class="calendar-nav">
+          <button type="button" class="month-step" id="month-previous" aria-label="上个月"><svg class="icon flip"><use href="#i-chevron"></use></svg></button>
+          <div class="month-selectors">
+            <input id="calendar-year" class="calendar-year" aria-label="年份" inputmode="numeric" maxlength="4" autocomplete="off">
+            <span>年</span>
+            <select id="calendar-month" aria-label="月份"></select>
+          </div>
+          <button type="button" class="month-step" id="month-next" aria-label="下个月"><svg class="icon"><use href="#i-chevron"></use></svg></button>
+          <button type="button" class="back-today" id="back-today">回到今天</button>
+        </div>
+        <div class="calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+        <div class="calendar-grid" id="calendar-grid" role="group"></div>
+        <div class="calendar-totals">
+          <span>每日用量 · tokens</span>
+          <span>本月 <b id="calendar-month-total">—</b><i></i>今年 <b id="calendar-year-total">—</b></span>
+        </div>
       </div>
-      <div class="dialog-actions"><button type="submit" class="primary">应用日期</button></div>
+    </div>
+    <form class="date-inputs" id="date-form">
+      <label>开始日期<span class="date-field"><svg class="icon"><use href="#i-calendar"></use></svg><input id="date-from" type="text" inputmode="numeric" placeholder="YYYY/MM/DD" autocomplete="off" required></span></label>
+      <label>结束日期<span class="date-field"><svg class="icon"><use href="#i-calendar"></use></svg><input id="date-to" type="text" inputmode="numeric" placeholder="YYYY/MM/DD" autocomplete="off" required></span></label>
+      <span class="selected-days" id="selected-days" aria-live="polite"></span>
+      <button type="button" class="control" id="date-cancel">取消</button>
+      <button type="submit" class="primary" id="date-apply">应用</button>
     </form>
   </dialog>
   <dialog id="settings" aria-labelledby="settings-title">

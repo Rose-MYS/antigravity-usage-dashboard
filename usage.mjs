@@ -230,3 +230,17 @@ export function buildUsage(snapshot, query, sessionId) {
     models: [...availableModels].sort(), sessions: sessionList,
   };
 }
+
+export function buildDaily(snapshot, query) {
+  const { localTime, model, today, timeZone } = query;
+  const days = {};
+  for (const record of snapshot.records) {
+    for (const event of record.events) {
+      if (model && event.model !== model) continue;
+      const date = localTime(event.time).slice(0, 10);
+      days[date] = (days[date] ?? 0) + event.input + event.cached + event.output;
+    }
+  }
+  const dates = Object.keys(days).sort();
+  return { timeZone, today, earliest: dates[0] ?? today, days };
+}
