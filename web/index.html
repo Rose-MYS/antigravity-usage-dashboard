@@ -52,31 +52,37 @@
     </header>
 
     <p id="notice" class="notice" role="status" hidden></p>
-    <section class="metrics" aria-label="用量概览">
+    <section class="metrics" id="metrics" aria-label="用量概览">
       <article class="metric hero">
         <h2>总用量</h2>
         <div class="hero-value"><strong id="total">—</strong><span>tokens</span></div>
         <p id="hero-caption">输入、缓存与输出</p>
         <div class="hero-chart" id="hero-chart" aria-hidden="true"></div>
+        <button type="button" class="hero-toggle" id="model-toggle" aria-label="按模型查看用量"
+          aria-expanded="false" aria-controls="model-panel" disabled>
+          <span class="hero-cue"><span id="model-toggle-label">按模型</span><svg class="icon small" aria-hidden="true"><use href="#i-chevron"></use></svg></span>
+        </button>
       </article>
-      <article class="metric output">
+      <article class="metric overview-metric output">
         <h2>输出用量</h2>
         <div class="metric-value"><strong id="output">—</strong><span>tokens</span></div>
         <div class="mini-bars" id="output-chart" aria-hidden="true"></div>
         <p id="output-caption">模型输出</p>
       </article>
-      <article class="metric">
+      <article class="metric overview-metric">
         <h2>会话数</h2>
         <div class="metric-value"><strong id="session-count">—</strong></div>
         <div class="ring session-ring" id="session-ring" aria-hidden="true"></div>
         <p class="dot-legend"><span><i></i>单模型 <b id="single-model">—</b></span><span><i></i>多模型 <b id="multi-model">—</b></span></p>
       </article>
-      <article class="metric">
+      <article class="metric overview-metric">
         <h2>缓存命中率</h2>
         <div class="metric-value"><strong id="rate">—</strong></div>
         <div class="ring" id="cache-ring" aria-hidden="true"></div>
         <p id="cache-caption">缓存输入 / 全部输入</p>
       </article>
+      <section class="model-panel" id="model-panel" aria-label="模型用量" hidden></section>
+      <section class="model-panel model-overflow" id="model-overflow" aria-label="更多模型用量" hidden></section>
     </section>
 
     <div class="workspace">

@@ -164,6 +164,7 @@ export function buildUsage(snapshot, query, sessionId) {
   const { start, end, localTime, model, period, today, currentHour, timeZone, sort, order } = query;
   const summary = stats();
   const availableModels = new Set();
+  const modelTotals = new Map();
   const sessionList = [];
   const buckets = new Map();
   let detail = null;
@@ -188,6 +189,7 @@ export function buildUsage(snapshot, query, sessionId) {
         events.push({ ...event, total: event.input + event.cached + event.output });
       } else {
         add(summary, event);
+        addToMap(modelTotals, event.model, event);
         addToMap(buckets, start === end && start ? stamp.slice(0, 13) : date, event);
       }
     }
@@ -217,7 +219,11 @@ export function buildUsage(snapshot, query, sessionId) {
       if (!buckets.has(day)) buckets.set(day, stats());
     }
   }
+  const modelBreakdown = [...modelTotals]
+    .map(([name, totals]) => ({ name, ...withRate(totals) }))
+    .sort((a, b) => b.total - a.total || b.turns - a.turns || a.name.localeCompare(b.name));
   return {
+    modelBreakdown,
     meta: { period, timeZone, start, end, today, source: snapshot.source, skipped: snapshot.skipped, generatedAt: Date.now() },
     summary: { ...withRate(summary), sessions: sessionList.length, multiModel: sessionList.filter((session) => session.models.length > 1).length },
     timeline: [...buckets].sort(([a], [b]) => a.localeCompare(b)).map(([label, totals]) => ({ label, ...totals })),

@@ -5,6 +5,7 @@ const sorts = ['updated', 'tokens', 'cache_rate', 'input', 'output', 'turns'];
 const homeZone = 'Asia/Shanghai';
 const systemZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const mobile = matchMedia('(max-width: 850px)');
+const modelPalette = ['--arc-blue', '--arc-green', '--arc-gold', '--arc-coral', '--model-teal', '--model-red'];
 const sessionRows = new Map();
 const folded = new Set();
 const emptyDetail = $('detail').firstElementChild.cloneNode(true);
@@ -39,6 +40,7 @@ let autoRefresh = readSetting('autoRefresh', 'true') === 'true';
 let data;
 let selectedId = '';
 let details;
+let modelOverviewOpen = false;
 let overviewRequest;
 let detailRequest;
 let timeFormat;
@@ -166,6 +168,64 @@ function chart(container, items, expanded = false) {
   </svg>`;
 }
 
+function makeModelCard(model, index, total) {
+  const card = node('article', 'model-card');
+  card.style.setProperty('--model-color', `var(${modelPalette[index % modelPalette.length]})`);
+  const heading = node('h2', 'model-card-name', model.name);
+  heading.title = model.name;
+  const values = node('div', 'model-card-values');
+  const amount = node('strong', '', compact(model.total));
+  amount.title = number.format(model.total) + ' tokens';
+  const share = node('span', '', percent(total ? model.total / total : null));
+  share.title = '占总用量';
+  values.append(amount, share);
+  card.append(heading, values);
+  return card;
+}
+
+function setModelOverview(open) {
+  const models = data?.modelBreakdown ?? [];
+  const toggle = $('model-toggle');
+  const label = $('model-toggle-label');
+  const panel = $('model-panel');
+  const overflow = $('model-overflow');
+  const visibleCount = 6;
+  modelOverviewOpen = open && models.length > 0;
+  const showOverflow = modelOverviewOpen && models.length > visibleCount;
+  const total = data?.summary.total ?? 0;
+  let offset = 0;
+  const segments = models.map((model, index) => {
+    const start = offset;
+    offset += total ? model.total / total * 100 : 100 / models.length;
+    const color = modelPalette[index % modelPalette.length];
+    return `var(${color}) ${start}% ${offset}%`;
+  });
+  toggle.parentElement.style.setProperty('--model-border', segments.length
+    ? `conic-gradient(from -60deg, ${segments.join(', ')})` : '');
+
+  toggle.disabled = !models.length;
+  toggle.setAttribute('aria-expanded', modelOverviewOpen);
+  toggle.setAttribute('aria-controls', showOverflow ? 'model-panel model-overflow' : 'model-panel');
+  toggle.setAttribute('aria-label', modelOverviewOpen ? '返回用量概览' : '按模型查看用量');
+  toggle.title = toggle.getAttribute('aria-label');
+  label.textContent = modelOverviewOpen ? '返回概览' : '按模型';
+  $('metrics').classList.toggle('models-open', modelOverviewOpen);
+  panel.hidden = !modelOverviewOpen;
+  overflow.hidden = !showOverflow;
+  if (!modelOverviewOpen) return;
+
+  const cards = models.map((model, index) => makeModelCard(model, index, total));
+  panel.replaceChildren(...cards.slice(0, visibleCount));
+  overflow.replaceChildren(...cards.slice(visibleCount));
+}
+
+$('model-toggle').addEventListener('click', () => setModelOverview(!modelOverviewOpen));
+window.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !modelOverviewOpen || document.querySelector('dialog[open]')) return;
+  setModelOverview(false);
+  $('model-toggle').focus({ preventScroll: true });
+});
+
 function renderOverview() {
   const { summary, timeline, meta } = data;
   timeFormat = new Intl.DateTimeFormat('zh-CN', {
@@ -195,6 +255,7 @@ function renderOverview() {
   $('cache-caption').textContent = `缓存 ${compact(summary.cached)} / 输入 ${compact(summary.input + summary.cached)}`;
   $('cache-caption').title = '缓存输入 ÷（未缓存输入 + 缓存输入）';
   chart($('hero-chart'), timeline);
+  setModelOverview(modelOverviewOpen);
   const marks = timeline.filter((bucket) => bucket.output).slice(-7);
   const maxOutput = Math.max(1, ...marks.map((bucket) => bucket.output));
   $('output-chart').replaceChildren(...marks.map((bucket) => {
