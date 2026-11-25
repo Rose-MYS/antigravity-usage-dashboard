@@ -1,6 +1,6 @@
 # Antigravity Usage Dashboard
 
-独立的本地用量面板，用来浏览 Antigravity 的 token 用量。打开面板即可查看四张总览卡、模型分组和会话详情。
+独立的本地用量面板，用来浏览 Antigravity 的 token 用量。打开面板即可查看四张总览卡、模型分组和会话详情。界面配色取自 Antigravity 彩色图标的蓝、绿、金黄和珊瑚红。
 
 ## 启动
 

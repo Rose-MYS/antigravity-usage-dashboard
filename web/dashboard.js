@@ -153,11 +153,16 @@ function chart(container, items, expanded = false) {
     return `<rect x="${Math.max(0, Math.min(width - size, x - size / 2))}" y="${height - h}" width="${size}" height="${h}" fill="currentColor" opacity=".24"/>`;
   }).join('') : '';
   const gradient = expanded ? 'detail-fill' : 'overview-fill';
+  const stroke = expanded ? 'currentColor' : 'url(#overview-stroke)';
+  const rainbow = expanded ? '' : `<linearGradient id="overview-stroke" gradientUnits="userSpaceOnUse" x1="0" x2="${width}">
+    <stop offset="0%" stop-color="var(--arc-blue)"/><stop offset="35%" stop-color="var(--arc-green)"/>
+    <stop offset="69%" stop-color="var(--arc-gold)"/><stop offset="100%" stop-color="var(--arc-coral)"/>
+  </linearGradient>`;
   container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
-    <defs><linearGradient id="${gradient}" x2="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".20"/><stop offset="100%" stop-color="currentColor" stop-opacity=".015"/></linearGradient></defs>
+    <defs>${rainbow}<linearGradient id="${gradient}" x2="0%" y2="100%"><stop offset="0%" stop-color="currentColor" stop-opacity=".17"/><stop offset="100%" stop-color="currentColor" stop-opacity=".015"/></linearGradient></defs>
     <path d="${grid}" stroke="#e0e6f3" fill="none" vector-effect="non-scaling-stroke"/>
     <path d="${line} V${height}H0Z" fill="url(#${gradient})"/>${bars}
-    <path d="${line}" fill="none" stroke="currentColor" stroke-width="${expanded ? 2 : 2.35}" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${line}" fill="none" stroke="${stroke}" stroke-width="${expanded ? 2 : 2.35}" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`;
 }
 
@@ -184,7 +189,7 @@ function renderOverview() {
   $('rate').textContent = percent(summary.rate);
   $('cache-ring').style.setProperty('--fill', percent(summary.rate ?? 0));
   $('session-ring').style.setProperty('--fill', percent(summary.sessions ? (summary.sessions - summary.multiModel) / summary.sessions : 0));
-  $('session-ring').style.setProperty('--remainder', summary.sessions ? '#afa4ee' : '#eeedf7');
+  $('session-ring').style.setProperty('--remainder', summary.sessions ? 'var(--session-secondary)' : 'var(--ring-track)');
   $('hero-caption').textContent = `${number.format(summary.turns)} 次模型请求`;
   $('output-caption').textContent = summary.total ? `占总量 ${percent(summary.output / summary.total)}` : '模型输出';
   $('cache-caption').textContent = `缓存 ${compact(summary.cached)} / 输入 ${compact(summary.input + summary.cached)}`;
