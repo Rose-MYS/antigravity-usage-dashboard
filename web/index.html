@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Antigravity Usage Dashboard</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/dashboard.css">
+  <script type="module" src="/dashboard.js"></script>
+</head>
+<body>
+  <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-orbit" viewBox="0 0 24 24"><path d="M8 16l4-10 4 10m-6.5-3h5M5 15c-1.4 1.9-1.7 3.2-1.1 3.8 1.1 1.1 5.8-.9 10.4-4.3 4.6-3.5 7.4-7.2 6.3-8.3-.5-.5-1.7-.4-3.3.2"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 19v-6m7 6V5m7 14v-9"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M9 3h6l.8 2.1 1 .6 2.2-.4 3 5.2-1.4 1.7v1.1L22 15l-3 5.2-2.2-.4-1 .6L15 22H9l-.8-1.6-1-.6-2.2.4L2 15l1.4-1.7v-1.1L2 10.5l3-5.2 2.2.4 1-.6L9 3Z"/><circle cx="12" cy="12.5" r="3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v5l-4 2v-7Z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 10h16"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="M4 6h9M4 11h6m-6 5h3m11-11v14m-4-4 4 4 4-4"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M4 4h16a1 1 0 0 1 1 1v13H9l-5 4Zm4 5h9m-9 4h6"/></symbol>
+    <symbol id="i-stack" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5m-18 4 9 5 9-5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M12 3 4 6v5c0 4.5 3.4 8.5 8 10 4.6-1.5 8-5.5 8-10V6Zm-4 9 2.5 2.5L16 9"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 6v5h-5m5-1a8 8 0 1 0-.4 5"/></symbol>
+  </svg>
+  <aside class="rail" aria-label="导航">
+    <div class="brand-icon" aria-hidden="true"><svg class="icon"><use href="#i-orbit"></use></svg></div>
+    <a class="rail-button current" href="#overview" aria-label="用量总览" aria-current="page" title="用量总览"><svg class="icon"><use href="#i-chart"></use></svg></a>
+    <button class="rail-button" id="settings-trigger" type="button" aria-label="设置" title="设置"><svg class="icon"><use href="#i-settings"></use></svg></button>
+  </aside>
+
+  <main id="overview">
+    <header class="topbar">
+      <h1>Antigravity <span>Usage Dashboard</span></h1>
+      <div class="query-tools">
+        <label class="search-box">
+          <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg>
+          <input id="search" type="search" aria-label="搜索模型或会话" placeholder="搜索模型或会话" autocomplete="off">
+        </label>
+        <button type="button" class="control" id="filter-trigger"><svg class="icon"><use href="#i-filter"></use></svg><span>筛选</span><span id="filter-count" hidden>1</span><svg class="icon small"><use href="#i-chevron"></use></svg></button>
+      </div>
+      <div class="date-tools">
+        <div class="segmented dates" id="quick-periods" aria-label="快捷日期">
+          <button type="button" data-period="today">今天</button>
+          <button type="button" data-period="7d">近 7 天</button>
+          <button type="button" data-period="week">本周</button>
+          <button type="button" data-period="month">本月</button>
+        </div>
+        <button type="button" class="control date-control" id="date-trigger"><svg class="icon"><use href="#i-calendar"></use></svg><span id="date-label">选择日期</span><svg class="icon small"><use href="#i-chevron"></use></svg></button>
+      </div>
+    </header>
+
+    <p id="notice" class="notice" role="status" hidden></p>
+    <section class="metrics" aria-label="用量概览">
+      <article class="metric hero">
+        <h2>总用量</h2>
+        <div class="hero-value"><strong id="total">—</strong><span>tokens</span></div>
+        <p id="hero-caption">输入、缓存与输出</p>
+        <div class="hero-chart" id="hero-chart" aria-hidden="true"></div>
+      </article>
+      <article class="metric output">
+        <h2>输出用量</h2>
+        <div class="metric-value"><strong id="output">—</strong><span>tokens</span></div>
+        <div class="mini-bars" id="output-chart" aria-hidden="true"></div>
+        <p id="output-caption">模型输出</p>
+      </article>
+      <article class="metric">
+        <h2>会话数</h2>
+        <div class="metric-value"><strong id="session-count">—</strong></div>
+        <div class="ring session-ring" id="session-ring" aria-hidden="true"></div>
+        <p class="dot-legend"><span><i></i>单模型 <b id="single-model">—</b></span><span><i></i>多模型 <b id="multi-model">—</b></span></p>
+      </article>
+      <article class="metric">
+        <h2>缓存命中率</h2>
+        <div class="metric-value"><strong id="rate">—</strong></div>
+        <div class="ring" id="cache-ring" aria-hidden="true"></div>
+        <p id="cache-caption">缓存输入 / 全部输入</p>
+      </article>
+    </section>
+
+    <div class="workspace">
+      <section class="panel sessions-panel" aria-labelledby="sessions-heading">
+        <header class="panel-head">
+          <div class="panel-title"><h2 id="sessions-heading">会话用量</h2><span id="list-count"></span></div>
+          <div class="panel-controls">
+            <div class="sort-control">
+              <button type="button" id="sort-direction" title="降序" aria-label="切换排序方向"><svg class="icon"><use href="#i-sort"></use></svg></button>
+              <select id="sort" aria-label="排序依据">
+                <option value="updated">最近更新</option>
+                <option value="tokens">总用量</option>
+                <option value="cache_rate">缓存命中率</option>
+                <option value="input">未缓存输入</option>
+                <option value="output">输出用量</option>
+                <option value="turns">请求次数</option>
+              </select>
+            </div>
+            <div class="segmented views" id="view-controls" aria-label="会话分组">
+              <button type="button" data-view="model" title="按当前范围内用量最高的模型分组">按模型</button>
+              <button type="button" data-view="session">按会话</button>
+            </div>
+          </div>
+        </header>
+        <div class="list-head row-grid" aria-hidden="true"><span>会话</span><span>用量 (tokens)</span><span>请求</span><span>缓存命中</span></div>
+        <div id="session-list" class="session-list" aria-label="会话列表"></div>
+        <p id="list-status" class="list-status">正在读取日志…</p>
+      </section>
+      <section class="panel detail-panel" id="detail" tabindex="-1" aria-label="会话详情">
+        <div class="empty-detail">
+          <div class="empty-icon"><svg class="icon"><use href="#i-message"></use></svg></div>
+          <h2>选择一个会话</h2>
+          <p>查看用量走势、token 构成与请求明细</p>
+        </div>
+      </section>
+    </div>
+    <footer>
+      <span><svg class="icon"><use href="#i-check"></use></svg>只读本地日志 · 统计范围以 Antigravity 保留的会话记录为准。</span>
+      <div><span id="refresh-status" role="status"></span><button type="button" id="refresh" title="刷新数据" aria-label="刷新数据"><svg class="icon"><use href="#i-refresh"></use></svg></button></div>
+    </footer>
+  </main>
+
+  <dialog id="filters" aria-labelledby="filters-title">
+    <form id="filter-form">
+      <header><h2 id="filters-title">筛选</h2><button type="button" class="close-dialog" aria-label="关闭"><svg class="icon"><use href="#i-close"></use></svg></button></header>
+      <label>模型<select id="model-filter"><option value="">全部模型</option></select></label>
+      <label>时区<select id="timezone"></select></label>
+      <div class="dialog-actions"><button type="button" class="control" id="reset-filters">清除筛选</button><button type="submit" class="primary">应用</button></div>
+    </form>
+  </dialog>
+  <dialog id="dates" aria-labelledby="dates-title">
+    <form id="date-form">
+      <header><h2 id="dates-title">日期范围</h2><button type="button" class="close-dialog" aria-label="关闭"><svg class="icon"><use href="#i-close"></use></svg></button></header>
+      <label>时间范围<select id="period">
+        <option value="today">今天</option><option value="7d">近 7 天</option><option value="week">本周</option>
+        <option value="month">本月</option><option value="30d">近 30 天</option><option value="all">全部</option><option value="custom">自定义日期</option>
+      </select></label>
+      <div class="date-fields" id="date-fields" hidden>
+        <label>开始日期<input type="date" id="date-from"></label>
+        <label>结束日期<input type="date" id="date-to"></label>
+      </div>
+      <div class="dialog-actions"><button type="submit" class="primary">应用日期</button></div>
+    </form>
+  </dialog>
+  <dialog id="settings" aria-labelledby="settings-title">
+    <form method="dialog">
+      <header><h2 id="settings-title">设置</h2><button type="button" class="close-dialog" aria-label="关闭"><svg class="icon"><use href="#i-close"></use></svg></button></header>
+      <label class="check"><input type="checkbox" id="auto-refresh">每 20 秒自动刷新</label>
+      <label class="check"><input type="checkbox" id="hide-titles">隐藏会话标题</label>
+      <div class="dialog-actions"><button class="primary">完成</button></div>
+    </form>
+  </dialog>
+</body>
+</html>
