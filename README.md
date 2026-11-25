@@ -22,6 +22,52 @@ $env:ANTIGRAVITY_DASHBOARD_PORT = '8768'
 npm start
 ```
 
+## 后台常驻与开机自启
+
+不想每次都开着终端运行 `npm start`，可以把面板装成后台服务：
+
+```sh
+npm run service:install     # 安装并立即启动，会询问是否开启下面两项
+npm run service:status      # 查看自启项、进程和访问地址
+npm run service:logs        # 查看最近 50 行日志（可写 npm run service:logs -- 200）
+npm run service:restart     # 重启后台服务
+npm run service:stop        # 暂时停止
+npm run service:uninstall   # 移除自启项并停止后台服务
+```
+
+安装时可以选择：
+
+| 选项 | 默认 | 说明 |
+|---|---|---|
+| 登录后自动启动 | 开 | 开机或重新登录后自动运行面板 |
+| 异常退出后自动重启 | 开 | 面板服务意外退出时自动拉起；关闭后，退出就停止 |
+
+在终端里运行会逐项询问，直接回车使用默认值。也可以用参数跳过询问（npm 需在参数前加 `--`）：
+
+```sh
+npm run service:install -- --yes                       # 全部使用默认值
+npm run service:install -- --no-autostart              # 只在后台运行，不开机自启
+npm run service:install -- --autostart --no-keepalive  # 开机自启，但不自动重启
+```
+
+想改选项时，重新运行 `npm run service:install` 即可。
+
+- **Windows**：注册一个当前用户的计划任务「Antigravity Usage Dashboard」。开启自启时在登录时启动；同时开启自动重启时，每 5 分钟巡检一次。程序通过 `wscript` 隐藏窗口运行，不弹黑框；使用电池时不会停止，也没有运行时长限制。无需管理员权限。
+- **macOS**：写入 `~/Library/LaunchAgents/com.github.rose-mys.antigravity-usage-dashboard.plist`（`launchd`，`KeepAlive`）。
+- **Linux**：写入 `~/.config/systemd/user/antigravity-usage-dashboard.service`（`systemd --user`，`Restart=always`）。如需在未登录时也运行，执行 `loginctl enable-linger`。
+
+后台由一个守护进程拉起 `server.mjs`，开启自动重启时，面板服务异常退出后会在 1–30 秒内重新拉起；同一时间只会运行一个实例。端口已被手动运行的 `npm start` 占用时，守护进程会等待它退出后再接管。
+
+安装时的 `ANTIGRAVITY_DASHBOARD_PORT` 和 `ANTIGRAVITY_BRAIN_DIR` 会被记住；修改后重新执行 `npm run service:install` 即可。日志、PID 和状态文件写在用户数据目录，不写入仓库：
+
+| 系统 | 目录 |
+|---|---|
+| Windows | `%LOCALAPPDATA%\antigravity-usage-dashboard` |
+| macOS | `~/Library/Application Support/antigravity-usage-dashboard` |
+| Linux | `${XDG_STATE_HOME:-~/.local/state}/antigravity-usage-dashboard` |
+
+日志超过 1 MB 会轮转为 `dashboard.log.1`，最多占用约 2 MB。移动仓库目录或升级 Node.js 后，请重新执行 `npm run service:install`。
+
 ## 查看用量
 
 - 顶部显示总用量、输出用量、会话数和缓存命中率。使用快捷日期或自定义区间，按模型和时区筛选。

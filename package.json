@@ -4,5 +4,14 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
-  "scripts": { "start": "node server.mjs" }
+  "scripts": {
+    "start": "node server.mjs",
+    "service:install": "node service.mjs install",
+    "service:uninstall": "node service.mjs uninstall",
+    "service:status": "node service.mjs status",
+    "service:start": "node service.mjs start",
+    "service:stop": "node service.mjs stop",
+    "service:restart": "node service.mjs restart",
+    "service:logs": "node service.mjs logs"
+  }
 }

@@ -65,4 +65,26 @@ server.on('error', (error) => {
   console.error(error.code === 'EADDRINUSE' ? `端口 ${port} 已占用。请设置 ANTIGRAVITY_DASHBOARD_PORT。` : error.message);
   process.exitCode = 1;
 });
+
+let closing = false;
+function shutdown(signal) {
+  if (closing) return;
+  closing = true;
+  console.log(`收到 ${signal}，正在关闭面板服务…`);
+  server.close(() => process.exit(process.exitCode ?? 0));
+  server.closeAllConnections?.();
+  setTimeout(() => process.exit(process.exitCode ?? 0), 3000).unref();
+}
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => shutdown(signal));
+process.on('uncaughtException', (error) => {
+  console.error('未处理的异常：', error?.stack || error);
+  process.exitCode = 1;
+  shutdown('uncaughtException');
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('未处理的 Promise 拒绝：', reason?.stack || reason);
+  process.exitCode = 1;
+  shutdown('unhandledRejection');
+});
+
 server.listen(port, host, () => console.log(`Antigravity Usage Dashboard · ${origin}/`));
