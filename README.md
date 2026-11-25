@@ -68,6 +68,20 @@ npm run service:install -- --autostart --no-keepalive  # 开机自启，但不�
 
 日志超过 1 MB 会轮转为 `dashboard.log.1`，最多占用约 2 MB。移动仓库目录或升级 Node.js 后，请重新执行 `npm run service:install`。
 
+## 更新到新版本
+
+有新版本时，面板顶部会出现提示条。在项目目录运行：
+
+```sh
+npm run update
+```
+
+它会用 `git pull --ff-only` 拉取最新代码；如果你改过项目里的文件，会停下来提示，不会覆盖你的修改。装了后台服务时会自动重启，新版本立即生效；否则请重新运行 `npm start`。
+
+- 面板大约每天联网检查一次 [GitHub Releases](https://github.com/Rose-MYS/antigravity-usage-dashboard/releases)，只读取最新版本号和更新说明，不上传任何数据。
+- 不想联网检查：在设置中取消「有新版本时提醒我」，或启动前设置 `ANTIGRAVITY_DASHBOARD_UPDATE_CHECK=0`。
+- 也可以在 GitHub 仓库页点 **Watch → Custom → Releases**，发版时收到 GitHub 通知。
+
 ## 查看用量
 
 - 顶部显示总用量、输出用量、会话数和缓存命中率。使用快捷日期或自定义区间，按模型和时区筛选。
@@ -83,7 +97,15 @@ npm run service:install -- --autostart --no-keepalive  # 开机自启，但不�
 - 一条有效的 `PLANNER_RESPONSE` 日志计为一次请求，按其记录时间归入所选时区和日期。
 - 总用量等于未缓存输入、缓存输入和输出之和。缓存命中率等于缓存输入除以全部输入。没有输入时显示 `—`。
 - 统计覆盖本机现存的上述日志，可能因 Antigravity 版本和日志保留范围而异。页面展示日志记录的用量与请求次数。
-- 服务仅监听 `127.0.0.1`，只读本地日志。页面资源随项目提供，运行时无需 API 密钥或外部服务。
+- 服务仅监听 `127.0.0.1`，只读本地日志。页面资源随项目提供，运行时无需 API 密钥。唯一的外部请求是检查新版本（可关闭，见上文）。
+
+## 发布新版本（维护者）
+
+1. 把 `package.json` 的 `version` 改高（如 `1.1.0` → `1.2.0`），提交并推送。
+2. 打标签并推送：`git tag v1.2.0 && git push origin v1.2.0`。
+3. 在 GitHub 上基于这个标签发布 Release，写几行更新说明（会显示在面板的提示里）。
+
+只推送标签、不建 Release 也能触发提醒，但提示里不会有更新说明。平时的普通提交不改版本号，就不会打扰用户。
 
 ## 本地图标
 

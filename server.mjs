@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { buildDaily, buildUsage, readQuery, TranscriptSource } from './usage.mjs';
+import { createUpdateChecker, CURRENT } from './version.mjs';
 
 const port = Number(process.env.ANTIGRAVITY_DASHBOARD_PORT ?? process.env.PORT ?? 8768);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new RangeError('端口必须为 1–65535。');
@@ -10,6 +11,7 @@ const host = '127.0.0.1';
 const origin = `http://${host}:${port}`;
 const brain = process.env.ANTIGRAVITY_BRAIN_DIR || join(homedir(), '.gemini', 'antigravity', 'brain');
 const source = new TranscriptSource(brain);
+const updateStatus = createUpdateChecker({ enabled: process.env.ANTIGRAVITY_DASHBOARD_UPDATE_CHECK !== '0' });
 const headers = {
   'Cache-Control': 'no-store',
   'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
@@ -46,7 +48,8 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, origin);
     const asset = assets.get(url.pathname);
     if (asset) return send(res, 200, asset.content, asset.type);
-    if (url.pathname === '/api/health') return send(res, 200, { app: 'antigravity-usage-dashboard' });
+    if (url.pathname === '/api/health') return send(res, 200, { app: 'antigravity-usage-dashboard', version: CURRENT });
+    if (url.pathname === '/api/version') return send(res, 200, await updateStatus());
     if (!['/api/usage', '/api/session', '/api/daily'].includes(url.pathname)) return send(res, 404, { error: '页面不存在。' });
 
     let query;
@@ -88,4 +91,4 @@ process.on('unhandledRejection', (reason) => {
   shutdown('unhandledRejection');
 });
 
-server.listen(port, host, () => console.log(`Antigravity Usage Dashboard · ${origin}/`));
+server.listen(port, host, () => console.log(`Antigravity Usage Dashboard v${CURRENT} · ${origin}/`));

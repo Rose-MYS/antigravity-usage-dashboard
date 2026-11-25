@@ -52,6 +52,13 @@
     </header>
 
     <p id="notice" class="notice" role="status" hidden></p>
+    <div class="update-banner" id="update-banner" role="status" hidden>
+      <span class="update-dot" aria-hidden="true"></span>
+      <p><b id="update-title">发现新版本</b><span id="update-detail"></span></p>
+      <span class="update-command">运行 <code>npm run update</code> 升级</span>
+      <a class="update-link" id="update-link" target="_blank" rel="noopener noreferrer">查看更新内容</a>
+      <button type="button" class="update-later" id="update-later">稍后提醒</button>
+    </div>
     <section class="metrics" id="metrics" aria-label="用量概览">
       <article class="metric hero">
         <h2>总用量</h2>
@@ -122,7 +129,7 @@
     </div>
     <footer>
       <span><svg class="icon"><use href="#i-check"></use></svg>只读本地日志 · 统计范围以 Antigravity 保留的会话记录为准。</span>
-      <div><span id="refresh-status" role="status"></span><button type="button" id="refresh" title="刷新数据" aria-label="刷新数据"><svg class="icon"><use href="#i-refresh"></use></svg></button></div>
+      <div><span id="app-version"></span><span id="refresh-status" role="status"></span><button type="button" id="refresh" title="刷新数据" aria-label="刷新数据"><svg class="icon"><use href="#i-refresh"></use></svg></button></div>
     </footer>
   </main>
   <div class="tooltip" id="tooltip" role="tooltip" popover="manual"></div>
@@ -182,6 +189,8 @@
       <header><h2 id="settings-title">设置</h2><button type="button" class="close-dialog" aria-label="关闭"><svg class="icon"><use href="#i-close"></use></svg></button></header>
       <label class="check"><input type="checkbox" id="auto-refresh">每 20 秒自动刷新</label>
       <label class="check"><input type="checkbox" id="hide-titles">隐藏会话标题</label>
+      <label class="check"><input type="checkbox" id="check-updates">有新版本时提醒我（每天联网检查一次 GitHub）</label>
+      <p class="version-line"><span id="version-status">当前版本 —</span><button type="button" class="link-button" id="check-now">立即检查</button></p>
       <div class="dialog-actions"><button class="primary">完成</button></div>
     </form>
   </dialog>

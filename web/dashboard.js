@@ -37,6 +37,7 @@ let query = queryFromUrl();
 let view = readSetting('view', 'model') === 'session' ? 'session' : 'model';
 let hideTitles = readSetting('hideTitles', 'false') === 'true';
 let autoRefresh = readSetting('autoRefresh', 'true') === 'true';
+let checkUpdates = readSetting('checkUpdates', 'true') === 'true';
 let data;
 let selectedId = '';
 let details;
@@ -1067,5 +1068,71 @@ for (const button of document.querySelectorAll('.close-dialog')) {
 setInterval(() => {
   if (autoRefresh && !document.hidden) refresh();
 }, 20000);
+
+// ---------- 新版本提醒 ----------
+const SNOOZE_MS = 3 * 86400000;
+let versionInfo;
+
+function snoozed(version) {
+  try {
+    const snooze = JSON.parse(readSetting('updateSnooze', 'null'));
+    return snooze?.version === version && Date.now() < snooze.until;
+  } catch {
+    return false;
+  }
+}
+
+function renderVersion(checking = false) {
+  const info = versionInfo;
+  const current = info ? `v${info.current}` : '';
+  $('app-version').textContent = current;
+  $('app-version').hidden = !current;
+  let text = info ? `当前版本 ${current}` : '当前版本 —';
+  if (checking) text += ' · 正在检查…';
+  else if (info?.updateAvailable) text += ` · 最新版本 v${info.latest}`;
+  else if (info?.checkedAt) text += ' · 已是最新版本';
+  else if (info && checkUpdates && info.enabled) text += ' · 暂时无法连接 GitHub';
+  $('version-status').textContent = text;
+  const show = Boolean(checkUpdates && info?.updateAvailable && !snoozed(info.latest));
+  $('update-banner').hidden = !show;
+  if (!show) return;
+  $('update-detail').textContent = ` v${info.latest}（当前 v${info.current}）`;
+  $('update-link').href = info.url || `${info.repo}/releases`;
+  const notes = info.notes.replace(/\r/g, '').split('\n').map((line) => line.replace(/^[#>*\-\s]+/, '').trim()).filter(Boolean).slice(0, 6);
+  if (notes.length) tip($('update-title'), [[`v${info.latest} 更新内容`], ...notes.map((line) => [line])]);
+}
+
+async function loadVersion(force = false) {
+  if (force) renderVersion(true);
+  try {
+    // 关闭提醒时只读本地版本号，不让服务端联网。
+    const response = await fetch(checkUpdates ? '/api/version' : '/api/health', { cache: 'no-store' });
+    const result = await response.json();
+    versionInfo = checkUpdates ? result : { current: result.version, enabled: false };
+  } catch { /* 下次再试。 */ }
+  renderVersion();
+}
+
+$('update-later').addEventListener('click', () => {
+  saveSetting('updateSnooze', JSON.stringify({ version: versionInfo.latest, until: Date.now() + SNOOZE_MS }));
+  renderVersion();
+});
+$('check-updates').checked = checkUpdates;
+$('check-updates').addEventListener('change', (event) => {
+  checkUpdates = event.target.checked;
+  saveSetting('checkUpdates', String(checkUpdates));
+  loadVersion(checkUpdates);
+});
+$('check-now').addEventListener('click', () => {
+  saveSetting('updateSnooze', 'null');
+  if (!checkUpdates) {
+    checkUpdates = true;
+    $('check-updates').checked = true;
+    saveSetting('checkUpdates', 'true');
+  }
+  loadVersion(true);
+});
+setInterval(() => { if (checkUpdates && !document.hidden) loadVersion(); }, 6 * 3600000);
+loadVersion();
 updateControls();
 refresh();

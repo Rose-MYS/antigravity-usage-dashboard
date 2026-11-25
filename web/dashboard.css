@@ -77,6 +77,25 @@ h1 span { display: block; font-size: 12px; line-height: 1.2; font-weight: 650; l
 .dates button[aria-pressed="true"] { background: var(--accent); color: #fff; font-weight: 650; }
 .views { background: var(--soft); }
 .views button[aria-pressed="true"] { background: var(--surface); color: var(--accent-dark); font-weight: 650; box-shadow: 0 1px 3px #2039571a; }
+.update-banner {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 12px; padding: 9px 12px 9px 14px;
+  border: 1px solid #cfe0fb; border-radius: 10px; background: linear-gradient(100deg, #eef5ff, #f3faf6 70%, #fffaf0); font-size: 13px;
+}
+.update-banner p { display: flex; align-items: baseline; gap: 4px; min-width: 0; margin-right: auto; }
+.update-banner b { color: var(--accent-dark); }
+.update-banner #update-detail { color: var(--muted); }
+.update-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px #245fbb1f; }
+.update-command { color: var(--muted); font-size: 12px; }
+.update-command code { padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px; background: #ffffffc0; color: var(--ink); font: 12px ui-monospace, "Cascadia Mono", Consolas, monospace; }
+.update-link { padding: 5px 11px; border-radius: 7px; background: var(--accent); color: #fff; font-weight: 650; font-size: 12px; }
+.update-link:hover { background: var(--accent-dark); }
+.update-later { padding: 5px 8px; border-radius: 7px; color: var(--muted); font-size: 12px; }
+.update-later:hover { background: #ffffffa0; color: var(--ink); }
+.version-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 12px; }
+.link-button { color: var(--accent-dark); font-size: 12px; font-weight: 600; }
+.link-button:hover { text-decoration: underline; }
+#app-version { padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px; }
+@media (max-width: 620px) { .update-command { display: none; } }
 .notice { border: 1px solid #e9d9ab; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; background: #fff9e9; color: #694719; }
 
 .metrics { display: grid; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); gap: 13px; margin-bottom: 17px; }

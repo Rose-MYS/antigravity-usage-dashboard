@@ -1,6 +1,6 @@
 {
   "name": "antigravity-usage-dashboard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
@@ -12,6 +12,7 @@
     "service:start": "node service.mjs start",
     "service:stop": "node service.mjs stop",
     "service:restart": "node service.mjs restart",
-    "service:logs": "node service.mjs logs"
+    "service:logs": "node service.mjs logs",
+    "update": "node update.mjs"
   }
 }
