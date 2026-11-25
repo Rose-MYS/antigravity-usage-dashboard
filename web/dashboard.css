@@ -36,8 +36,7 @@ button:disabled { cursor: wait; opacity: .65; }
   display: flex; align-items: center; flex-direction: column; gap: 9px; padding-top: 26px; background: #f8f9fd;
 }
 .brand-icon, .rail-button { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; }
-.brand-icon { background: #3f398f; color: white; margin-bottom: 15px; }
-.brand-icon .icon { width: 29px; height: 29px; }
+.brand-icon { object-fit: contain; margin-bottom: 15px; }
 .rail-button { color: var(--muted); }
 .rail-button:hover, .rail-button.current { background: #e9e8fc; color: var(--accent-dark); }
 .rail-button.current .icon { stroke-width: 2; }
@@ -221,7 +220,6 @@ input[type="checkbox"] { accent-color: var(--accent); }
   .rail { position: static; width: auto; height: 52px; border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; gap: 6px; padding: 0 12px; }
   .brand-icon, .rail-button { width: 34px; height: 34px; border-radius: 9px; margin: 0; }
   .brand-icon { margin-right: auto; }
-  .brand-icon .icon { width: 24px; height: 24px; }
   main { margin-left: 0; padding-top: 13px; }
   h1 { font-size: 24px; }
   .topbar { gap: 9px; margin-bottom: 13px; }

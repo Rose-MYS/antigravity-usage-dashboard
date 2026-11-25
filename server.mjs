@@ -23,6 +23,14 @@ const assets = new Map(await Promise.all([
   ['/dashboard.js', 'dashboard.js', 'text/javascript'],
   ['/favicon.svg', 'favicon.svg', 'image/svg+xml'],
 ].map(async ([url, file, type]) => [url, { type, content: await readFile(new URL(`./web/${file}`, import.meta.url)) }])));
+const localIcon = await readFile(new URL('./web/antigravity.local.png', import.meta.url)).catch((error) => {
+  if (error.code !== 'ENOENT') console.warn('无法读取本地 Antigravity 图标，将显示默认图标。');
+  return null;
+});
+const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+assets.set('/dashboard-icon', localIcon?.subarray(0, 8).equals(pngSignature)
+  ? { type: 'image/png', content: localIcon }
+  : assets.get('/favicon.svg'));
 
 function send(res, status, content, type = 'application/json') {
   res.writeHead(status, { ...headers, 'Content-Type': `${type}; charset=utf-8` });

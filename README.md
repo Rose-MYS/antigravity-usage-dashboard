@@ -1,12 +1,14 @@
 # Antigravity Usage Dashboard
 
-在本机浏览 Antigravity 的 token 用量。打开面板即可查看四张总览卡、模型分组和会话详情。
+独立的本地用量面板，用来浏览 Antigravity 的 token 用量。打开面板即可查看四张总览卡、模型分组和会话详情。
 
 ## 启动
 
-安装 Node.js 20 或更新版本，在仓库目录运行：
+安装 Node.js 20 或更新版本，然后克隆仓库并启动。
 
 ```sh
+git clone https://github.com/Rose-MYS/antigravity-usage-dashboard.git
+cd antigravity-usage-dashboard
 npm start
 ```
 
@@ -33,6 +35,10 @@ npm start
 - 总用量等于未缓存输入、缓存输入和输出之和。缓存命中率等于缓存输入除以全部输入。没有输入时显示 `—`。
 - 统计覆盖本机现存的上述日志，可能因 Antigravity 版本和日志保留范围而异。页面展示日志记录的用量与请求次数。
 - 服务仅监听 `127.0.0.1`，只读本地日志。页面资源随项目提供，运行时无需 API 密钥或外部服务。
+
+## 本地图标
+
+如需在侧栏和浏览器标签页显示官方彩色图标，请下载 Antigravity 的 **Icon - Full Color** PNG，保存为 `web/antigravity.local.png` 后重启面板。该文件由本机服务读取，已加入 Git 忽略规则。缺少文件时，面板显示自带图标。Antigravity 品牌图标归 Google 所有。 [官方媒体素材](https://antigravity.google/press)
 
 ## 致谢
 
