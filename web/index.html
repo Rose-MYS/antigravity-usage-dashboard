@@ -58,6 +58,7 @@
         <div class="hero-value"><strong id="total">—</strong><span>tokens</span></div>
         <p id="hero-caption">输入、缓存与输出</p>
         <div class="hero-chart" id="hero-chart" aria-hidden="true"></div>
+        <svg class="model-border" id="model-border" aria-hidden="true"></svg>
         <button type="button" class="hero-toggle" id="model-toggle" aria-label="按模型查看用量"
           aria-expanded="false" aria-controls="model-panel" disabled>
           <span class="hero-cue"><span id="model-toggle-label">按模型</span><svg class="icon small" aria-hidden="true"><use href="#i-chevron"></use></svg></span>
@@ -66,8 +67,8 @@
       <article class="metric overview-metric output">
         <h2>输出用量</h2>
         <div class="metric-value"><strong id="output">—</strong><span>tokens</span></div>
-        <div class="mini-bars" id="output-chart" aria-hidden="true"></div>
-        <p id="output-caption">模型输出</p>
+        <p class="metric-sub" id="output-caption">模型输出</p>
+        <div class="daily-bars" id="output-chart" role="group" aria-label="各时段输出用量"></div>
       </article>
       <article class="metric overview-metric">
         <h2>会话数</h2>
@@ -124,6 +125,7 @@
       <div><span id="refresh-status" role="status"></span><button type="button" id="refresh" title="刷新数据" aria-label="刷新数据"><svg class="icon"><use href="#i-refresh"></use></svg></button></div>
     </footer>
   </main>
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
 
   <dialog id="filters" aria-labelledby="filters-title">
     <form id="filter-form">

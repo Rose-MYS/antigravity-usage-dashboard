@@ -5,7 +5,7 @@ const sorts = ['updated', 'tokens', 'cache_rate', 'input', 'output', 'turns'];
 const homeZone = 'Asia/Shanghai';
 const systemZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const mobile = matchMedia('(max-width: 850px)');
-const modelPalette = ['--arc-blue', '--arc-green', '--arc-gold', '--arc-coral', '--model-teal', '--model-red'];
+const modelPalette = ['--arc-blue', '--arc-green', '--arc-gold', '--arc-coral', '--model-teal', '--model-red', '--model-violet', '--model-slate'];
 const sessionRows = new Map();
 const folded = new Set();
 const emptyDetail = $('detail').firstElementChild.cloneNode(true);
@@ -129,58 +129,251 @@ function dateText(date, full) {
   return `${full ? year + '年' : ''}${month}月${day}日`;
 }
 
-function chart(container, items, expanded = false) {
+function smoothPath(points) {
+  if (points.length < 3) return points.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)} ${y.toFixed(2)}`).join(' ');
+  let path = `M${points[0][0].toFixed(2)} ${points[0][1].toFixed(2)}`;
+  for (let i = 1; i < points.length; i++) {
+    const [x0, y0] = points[i - 1];
+    const [x1, y1] = points[i];
+    const mid = (x0 + x1) / 2;
+    path += ` C${mid.toFixed(2)} ${y0.toFixed(2)} ${mid.toFixed(2)} ${y1.toFixed(2)} ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  }
+  return path;
+}
+
+function chart(container, items) {
   if (!items.length) {
     container.replaceChildren();
     return;
   }
   const width = 500;
   const height = 148;
-  const rawTotals = items.map((item) => item.total);
-  const grand = rawTotals.reduce((sum, value) => sum + value, 0);
-  const max = Math.max(1, grand);
-  const startTime = items[0].time;
-  const elapsed = items.at(-1).time - startTime;
+  const grand = Math.max(1, items.reduce((sum, item) => sum + item.total, 0));
   let running = 0;
-  const points = rawTotals.map((value, i) => {
-    running += value;
-    const fraction = elapsed > 0 ? (items[i].time - startTime) / elapsed : (i + 1) / rawTotals.length;
-    return [fraction * width, height - (running / max) * (height - 7)];
-  });
-  const line = 'M0 ' + height + points.map(([x, y]) => ` L${x.toFixed(2)} ${y.toFixed(2)}`).join('');
-  const grid = expanded ? [5, 52, 100, height].map((y) => `M0 ${y}H${width}`).join(' ') : '';
-  const bars = expanded ? points.map(([x], i) => {
-    const size = Math.max(1, Math.min(9, width / rawTotals.length / 2));
-    const h = (rawTotals[i] / max) * (height - 7);
-    return `<rect x="${Math.max(0, Math.min(width - size, x - size / 2))}" y="${height - h}" width="${size}" height="${h}" fill="currentColor" opacity=".24"/>`;
-  }).join('') : '';
-  const gradient = expanded ? 'detail-fill' : 'overview-fill';
-  const stroke = expanded ? 'currentColor' : 'url(#overview-stroke)';
-  const rainbow = expanded ? '' : `<linearGradient id="overview-stroke" gradientUnits="userSpaceOnUse" x1="0" x2="${width}">
-    <stop offset="0%" stop-color="var(--arc-blue)"/><stop offset="35%" stop-color="var(--arc-green)"/>
-    <stop offset="69%" stop-color="var(--arc-gold)"/><stop offset="100%" stop-color="var(--arc-coral)"/>
-  </linearGradient>`;
+  const points = [[0, height], ...items.map((item, i) => {
+    running += item.total;
+    return [((i + 1) / items.length) * width, height - (running / grand) * (height - 7)];
+  })];
+  const line = smoothPath(points);
   container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
-    <defs>${rainbow}<linearGradient id="${gradient}" x2="0%" y2="100%"><stop offset="0%" stop-color="currentColor" stop-opacity=".17"/><stop offset="100%" stop-color="currentColor" stop-opacity=".015"/></linearGradient></defs>
-    <path d="${grid}" stroke="#e0e6f3" fill="none" vector-effect="non-scaling-stroke"/>
-    <path d="${line} V${height}H0Z" fill="url(#${gradient})"/>${bars}
-    <path d="${line}" fill="none" stroke="${stroke}" stroke-width="${expanded ? 2 : 2.35}" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>
+    <defs><linearGradient id="overview-stroke" gradientUnits="userSpaceOnUse" x1="0" x2="${width}">
+      <stop offset="0%" stop-color="var(--arc-blue)"/><stop offset="35%" stop-color="var(--arc-green)"/>
+      <stop offset="69%" stop-color="var(--arc-gold)"/><stop offset="100%" stop-color="var(--arc-coral)"/>
+    </linearGradient><linearGradient id="overview-fill" x2="0%" y2="100%"><stop offset="0%" stop-color="currentColor" stop-opacity=".16"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+    <path d="${line} V${height}H0Z" fill="url(#overview-fill)"/>
+    <path d="${line}" fill="none" stroke="url(#overview-stroke)" stroke-width="2.4" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`;
+}
+
+function niceStep(value) {
+  const raw = Math.max(1, value);
+  const power = 10 ** Math.floor(Math.log10(raw));
+  return [1, 1.5, 2, 2.5, 3, 5, 10].map((factor) => factor * power).find((step) => step >= raw);
+}
+
+function detailChart(container, events, format) {
+  container.replaceChildren();
+  if (!events.length) {
+    container.append(node('p', 'chart-empty', '这个范围内没有请求'));
+    return;
+  }
+  const width = 600;
+  const height = 180;
+  const totals = events.map((event) => event.total);
+  const grand = totals.reduce((sum, value) => sum + value, 0);
+  const step = niceStep(grand / 3);
+  const top = step * 3;
+  const startTime = events[0].time;
+  const elapsed = events.at(-1).time - startTime;
+  const xAt = (i) => (elapsed > 0 ? (events[i].time - startTime) / elapsed : (events.length > 1 ? i / (events.length - 1) : 1));
+  let running = 0;
+  const points = totals.map((value, i) => {
+    running += value;
+    return { x: xAt(i), y: running / top, cumulative: running, event: events[i] };
+  });
+  const maxSingle = Math.max(1, ...totals);
+  const coords = [[0, height], ...points.map((point) => [point.x * width, height - point.y * height])];
+  const line = coords.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)} ${y.toFixed(2)}`).join(' ');
+  const barWidth = Math.max(1.5, Math.min(8, width / events.length * 0.55));
+  const bars = points.map((point, i) => {
+    const h = Math.max(1.5, totals[i] / maxSingle * height * 0.28);
+    const x = Math.max(0, Math.min(width - barWidth, point.x * width - barWidth / 2));
+    return `<rect x="${x.toFixed(2)}" y="${(height - h).toFixed(2)}" width="${barWidth.toFixed(2)}" height="${h.toFixed(2)}" rx="1" class="bar"/>`;
+  }).join('');
+  const xTicks = [0, 1 / 3, 2 / 3, 1];
+  const grid = [1, 2, 3].map((n) => `M0 ${(height - n / 3 * height).toFixed(2)}H${width}`)
+    .concat(xTicks.slice(1, -1).map((t) => `M${(t * width).toFixed(2)} 0V${height}`)).join(' ');
+
+  const frame = node('div', 'chart-frame');
+  const yAxis = node('div', 'y-axis');
+  for (let n = 0; n <= 3; n++) {
+    const tick = node('span', '', compact(step * n));
+    tick.style.setProperty('--at', `${n / 3 * 100}%`);
+    yAxis.append(tick);
+  }
+  const plot = node('div', 'plot');
+  plot.tabIndex = 0;
+  plot.setAttribute('role', 'img');
+  plot.setAttribute('aria-label', `累计用量从 0 增至 ${number.format(grand)} tokens，共 ${events.length} 次请求。可用左右方向键查看每次请求。`);
+  plot.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="detail-fill" x2="0%" y2="100%"><stop offset="0%" stop-color="currentColor" stop-opacity=".2"/><stop offset="100%" stop-color="currentColor" stop-opacity=".02"/></linearGradient></defs>
+    <path d="${grid}" class="grid" vector-effect="non-scaling-stroke"/>
+    <path d="M0 ${height}H${width}" class="baseline" vector-effect="non-scaling-stroke"/>
+    ${bars}
+    <path d="${line} V${height}H0Z" fill="url(#detail-fill)"/>
+    <path d="${line}" class="line" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+  const cursor = node('i', 'chart-cursor');
+  const dot = node('i', 'chart-dot');
+  cursor.hidden = dot.hidden = true;
+  plot.append(cursor, dot);
+  const xAxis = node('div', 'x-axis');
+  for (const t of xTicks) {
+    const time = elapsed > 0 ? startTime + t * elapsed : events[Math.round(t * (events.length - 1))].time;
+    const label = node('span', '', format.format(time));
+    label.style.setProperty('--at', `${t * 100}%`);
+    xAxis.append(label);
+  }
+  frame.append(yAxis, plot, node('span'), xAxis);
+  container.append(frame);
+
+  let active = -1;
+  const show = (index, anchor) => {
+    active = Math.max(0, Math.min(points.length - 1, index));
+    const point = points[active];
+    for (const mark of [cursor, dot]) {
+      mark.hidden = false;
+      mark.style.setProperty('--x', `${point.x * 100}%`);
+      mark.style.setProperty('--y', `${point.y * 100}%`);
+    }
+    const rect = plot.getBoundingClientRect();
+    tooltip.show([
+      [format.format(point.event.time), point.event.model],
+      ['累计', `${number.format(point.cumulative)} tokens`],
+      ['本次请求', `${number.format(point.event.total)} tokens`],
+    ], anchor ?? { x: rect.left + point.x * rect.width, y: rect.top + (1 - point.y) * rect.height });
+  };
+  const hide = () => {
+    cursor.hidden = dot.hidden = true;
+    tooltip.hide();
+  };
+  plot.addEventListener('pointermove', (event) => {
+    const rect = plot.getBoundingClientRect();
+    const fraction = (event.clientX - rect.left) / rect.width;
+    let nearest = 0;
+    for (let i = 1; i < points.length; i++) {
+      if (Math.abs(points[i].x - fraction) < Math.abs(points[nearest].x - fraction)) nearest = i;
+    }
+    show(nearest, { x: event.clientX, y: event.clientY });
+  });
+  plot.addEventListener('pointerleave', hide);
+  plot.addEventListener('blur', hide);
+  plot.addEventListener('keydown', (event) => {
+    const moves = { ArrowLeft: -1, ArrowRight: 1, Home: -Infinity, End: Infinity };
+    if (!(event.key in moves)) return;
+    event.preventDefault();
+    const move = moves[event.key];
+    show(Number.isFinite(move) ? (active < 0 ? points.length - 1 : active + move) : (move < 0 ? 0 : points.length - 1));
+  });
+}
+
+const tooltip = (() => {
+  const box = $('tooltip');
+  let owner = null;
+  function place({ x, y }) {
+    const gap = 14;
+    const { width, height } = box.getBoundingClientRect();
+    const left = x + gap + width > innerWidth - 8 ? x - gap - width : x + gap;
+    const top = Math.min(innerHeight - height - 8, Math.max(8, y - height - gap));
+    box.style.setProperty('left', `${Math.max(8, left)}px`);
+    box.style.setProperty('top', `${top}px`);
+  }
+  function show(rows, at) {
+    box.replaceChildren(...rows.map(([label, value], i) => {
+      const row = node('div', i ? 'tip-row' : 'tip-title');
+      row.append(node('span', '', label));
+      if (value) row.append(node('b', '', value));
+      return row;
+    }));
+    box.hidden = false;
+    place(at);
+  }
+  function hide() {
+    box.hidden = true;
+    owner = null;
+  }
+  const rowsFor = (element) => JSON.parse(element.dataset.tip);
+  const centerOf = (element) => {
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top };
+  };
+  document.addEventListener('pointerover', (event) => {
+    const target = event.target.closest?.('[data-tip]');
+    if (target === owner) return;
+    if (!target) {
+      if (owner) hide();
+      return;
+    }
+    owner = target;
+    show(rowsFor(target), { x: event.clientX, y: event.clientY });
+  });
+  document.addEventListener('pointermove', (event) => {
+    if (owner && !box.hidden) place({ x: event.clientX, y: event.clientY });
+  });
+  document.addEventListener('focusin', (event) => {
+    const target = event.target.closest?.('[data-tip]');
+    if (target) {
+      owner = target;
+      show(rowsFor(target), centerOf(target));
+    }
+  });
+  document.addEventListener('focusout', hide);
+  document.addEventListener('scroll', hide, true);
+  return { show, hide };
+})();
+
+function tip(element, rows) {
+  element.dataset.tip = JSON.stringify(rows);
+  return element;
+}
+
+function bucketLabel(label) {
+  return label.length > 10 ? `${label.slice(11, 13)}:00` : dateText(label);
+}
+
+function dailyBars(container, buckets) {
+  const items = buckets.slice(-31);
+  const max = Math.max(1, ...items.map((bucket) => bucket.output));
+  container.style.setProperty('--count', items.length);
+  container.replaceChildren(...items.map((bucket, i) => {
+    const column = node('span', 'daily-column');
+    const bar = node('i', i === items.length - 1 ? 'latest' : '');
+    bar.style.setProperty('--size', bucket.output ? `${Math.max(4, bucket.output / max * 100)}%` : '2px');
+    column.append(bar);
+    column.setAttribute('aria-label', `${bucketLabel(bucket.label)}：${number.format(bucket.output)} tokens`);
+    return tip(column, [[bucketLabel(bucket.label)], ['输出', `${compact(bucket.output)} tokens`], ['请求', number.format(bucket.turns)]]);
+  }));
 }
 
 function makeModelCard(model, index, total) {
   const card = node('article', 'model-card');
   card.style.setProperty('--model-color', `var(${modelPalette[index % modelPalette.length]})`);
-  const heading = node('h2', 'model-card-name', model.name);
-  heading.title = model.name;
+  card.style.setProperty('--delay', `${Math.min(index, 8) * 22}ms`);
+  card.tabIndex = 0;
+  const share = total ? model.total / total : null;
+  const heading = node('h3', 'model-card-name');
+  heading.append(node('i'), node('span', '', model.name));
   const values = node('div', 'model-card-values');
-  const amount = node('strong', '', compact(model.total));
-  amount.title = number.format(model.total) + ' tokens';
-  const share = node('span', '', percent(total ? model.total / total : null));
-  share.title = '占总用量';
-  values.append(amount, share);
-  card.append(heading, values);
-  return card;
+  values.append(node('strong', '', compact(model.total)), node('span', '', percent(share)));
+  card.append(heading, values, node('p', 'model-card-meta', `${number.format(model.turns)} 次请求 · 缓存命中 ${percent(model.rate)}`));
+  card.setAttribute('aria-label', `${model.name}：${number.format(model.total)} tokens，占 ${percent(share)}`);
+  return tip(card, [
+    [model.name],
+    ['用量', `${number.format(model.total)} tokens`],
+    ['占总用量', percent(share)],
+    ['请求', number.format(model.turns)],
+    ['缓存命中', percent(model.rate)],
+  ]);
 }
 
 function setModelOverview(open) {
@@ -193,15 +386,7 @@ function setModelOverview(open) {
   modelOverviewOpen = open && models.length > 0;
   const showOverflow = modelOverviewOpen && models.length > visibleCount;
   const total = data?.summary.total ?? 0;
-  let offset = 0;
-  const segments = models.map((model, index) => {
-    const start = offset;
-    offset += total ? model.total / total * 100 : 100 / models.length;
-    const color = modelPalette[index % modelPalette.length];
-    return `var(${color}) ${start}% ${offset}%`;
-  });
-  toggle.parentElement.style.setProperty('--model-border', segments.length
-    ? `conic-gradient(from -60deg, ${segments.join(', ')})` : '');
+  drawModelBorder();
 
   toggle.disabled = !models.length;
   toggle.setAttribute('aria-expanded', modelOverviewOpen);
@@ -215,10 +400,36 @@ function setModelOverview(open) {
   if (!modelOverviewOpen) return;
 
   const cards = models.map((model, index) => makeModelCard(model, index, total));
+  panel.classList.toggle('single-row', models.length <= 3);
   panel.replaceChildren(...cards.slice(0, visibleCount));
   overflow.replaceChildren(...cards.slice(visibleCount));
 }
 
+function drawModelBorder() {
+  const svg = $('model-border');
+  const hero = svg.parentElement;
+  const models = data?.modelBreakdown ?? [];
+  const total = models.reduce((sum, model) => sum + model.total, 0);
+  const width = hero.clientWidth;
+  const height = hero.clientHeight;
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  let offset = 0;
+  svg.replaceChildren(...models.map((model, index) => {
+    const share = total ? model.total / total * 100 : 100 / models.length;
+    const rect = document.createElementNS(svg.namespaceURI, 'rect');
+    for (const [key, value] of Object.entries({
+      x: 1.5, y: 1.5, width: Math.max(0, width - 3), height: Math.max(0, height - 3), rx: 14.5,
+      pathLength: 100, stroke: `var(${modelPalette[index % modelPalette.length]})`,
+      'stroke-dasharray': `${share} ${100 - share}`,
+    })) rect.setAttribute(key, value);
+    rect.style.setProperty('--offset', -offset);
+    offset += share;
+    return rect;
+  }).filter((_, index) => models[index].total || !total));
+  $('metrics').style.setProperty('--hero-height', `${height}px`);
+}
+
+new ResizeObserver(drawModelBorder).observe($('model-border').parentElement);
 $('model-toggle').addEventListener('click', () => setModelOverview(!modelOverviewOpen));
 window.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape' || !modelOverviewOpen || document.querySelector('dialog[open]')) return;
@@ -256,13 +467,11 @@ function renderOverview() {
   $('cache-caption').title = '缓存输入 ÷（未缓存输入 + 缓存输入）';
   chart($('hero-chart'), timeline);
   setModelOverview(modelOverviewOpen);
-  const marks = timeline.filter((bucket) => bucket.output).slice(-7);
-  const maxOutput = Math.max(1, ...marks.map((bucket) => bucket.output));
-  $('output-chart').replaceChildren(...marks.map((bucket) => {
-    const bar = node('i');
-    bar.style.setProperty('--size', `${Math.max(9, bucket.output / maxOutput * 100)}%`);
-    return bar;
-  }));
+  dailyBars($('output-chart'), timeline);
+  $('output-chart').setAttribute('aria-label', meta.start && meta.start === meta.end ? '每小时输出用量' : '每日输出用量');
+  tip($('cache-ring'), [[`缓存命中率 · ${percent(summary.rate)}`], ['缓存输入', `${number.format(summary.cached)} tokens`], ['未缓存输入', `${number.format(summary.input)} tokens`]]);
+  const single = summary.sessions - summary.multiModel;
+  tip($('session-ring'), [['会话构成'], ['单模型', `${number.format(single)} · ${percent(summary.sessions ? single / summary.sessions : null)}`], ['多模型', `${number.format(summary.multiModel)} · ${percent(summary.sessions ? summary.multiModel / summary.sessions : null)}`]]);
 
   const note = meta.source === 'missing' ? '未找到 Antigravity 日志目录。请启动 Antigravity，或设置 ANTIGRAVITY_BRAIN_DIR。'
     : meta.skipped ? `有 ${meta.skipped} 份日志暂时无法读取，刷新后会重试。` : '';
@@ -440,14 +649,16 @@ function renderDetail() {
 
   const trend = section('用量走势');
   const trendHead = node('div', 'chart-head');
-  trendHead.append(trend.firstElementChild, node('span', '', '累计用量 / 单次请求'));
+  const legend = node('span', 'chart-legend');
+  const lineKey = node('span');
+  lineKey.append(node('i', 'line-key'), '累计用量');
+  const barKey = node('span');
+  barKey.append(node('i', 'bar-key'), '单次请求');
+  legend.append(lineKey, barKey);
+  trendHead.append(trend.firstElementChild, legend);
   const graph = node('div', 'detail-chart');
-  graph.setAttribute('role', 'img');
-  graph.setAttribute('aria-label', `累计用量从 0 增至 ${number.format(details.total)} tokens`);
-  chart(graph, details.events, true);
-  const axis = node('div', 'axis-labels');
-  axis.append(node('span', '', started), node('span', '', updated));
-  trend.append(trendHead, graph, axis);
+  detailChart(graph, details.events, durationFormat);
+  trend.append(trendHead, graph);
   breakdown.append(segments, stats);
   body.append(trend, breakdown);
 
